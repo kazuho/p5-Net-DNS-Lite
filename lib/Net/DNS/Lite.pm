@@ -1,5 +1,7 @@
 package Net::DNS::Lite;
 
+use 5.008_001;
+
 use strict;
 use warnings;
 
@@ -261,13 +263,6 @@ sub request {
 
 sub _enc_name($) {
     pack "(C/a*)*", (split /\./, shift), ""
-}
-
-if ($] < 5.008) {
-    # special slower 5.6 version
-    *_enc_name = sub ($) {
-        join "", map +(pack "C/a*", $_), (split /\./, shift), ""
-    };
 }
 
 sub _enc_qd() {
