@@ -130,17 +130,19 @@ sub new {
 sub _compile {
     my $self = shift;
 
-    my %search;
     $self->{search} = [ grep { length($_) } uniq @{$self->{search}} ];
-    $self->{server} = [ grep { length($_) } uniq @{$self->{server}} ];
+
+    $self->{server} = [
+        map {
+            inet_aton($_) or Carp::croak "invalid server address: $_"
+        } grep { length($_) } uniq @{$self->{server}},
+    ];
 
     my @retry;
 
     for my $timeout (@{$self->{timeout}}) {
         for my $server (@{$self->{server}}) {
-            my $iaddr = inet_aton($server)
-                or Carp::croak "invalid server address: $server : $!";
-            push @retry, [ scalar sockaddr_in(DOMAIN_PORT, $iaddr), $timeout ];
+            push @retry, [ $server, $timeout ];
         }
     }
 
@@ -235,7 +237,10 @@ sub request {
         my $timeout_at = $now + $timeout;
 
         # send request
-        send($self->{sock_v4}, $req_pkt, 0, $server);
+        send(
+            $self->{sock_v4}, $req_pkt, 0,
+            scalar sockaddr_in(DOMAIN_PORT, $server),
+        );
 
         # wait for the response (or the timeout)
         my $res;
@@ -250,7 +255,6 @@ sub request {
             my $from = recv($self->{sock_v4}, my $res_pkt, 1024, 0)
                 or next;
             my ($from_port, $from_addr) = unpack_sockaddr_in($from);
-            $from_addr = inet_ntoa($from_addr);
             if (! ($from_port == DOMAIN_PORT
                        && grep { $from_addr eq $_ } @{$self->{server}})) {
                 next;
