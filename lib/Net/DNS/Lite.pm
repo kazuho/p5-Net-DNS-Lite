@@ -177,6 +177,10 @@ sub resolve {
         ? map { +($_ => 1) } @{$opt{accept}}
         : ($qtype => 1);
 
+    # use some big value as default so that all servers and retries will be
+    # performed before total_timeout
+    my $timeout_at = time + (defined $opt{timeout} ? $opt{timeout} : $TIMEOUT);
+
     # advance in searchlist
     my ($do_search, $do_req);
 
@@ -194,7 +198,7 @@ sub resolve {
                     rd => 1,
                     qd => [[$name, $qtype, $class]],
                 },
-                ($opt{timeout} ? ($opt{timeout}) : ()),
+                $timeout_at,
             ) or return $do_search->();
 
             my $cname;
@@ -238,22 +242,15 @@ sub resolve {
 }
 
 sub request {
-    my ($self, $req, $total_timeout) = @_;
+    my ($self, $req, $total_timeout_at) = @_;
 
     $req->{id} ||= $$;
     my $req_pkt = dns_pack($req);
 
-    # use some big value as default so that all servers and retries will be
-    # performed before total_timeout
-    $total_timeout = $TIMEOUT
-        if not defined $total_timeout;
-
-    my $now = time;
-    my $total_timeout_at = $now + $total_timeout;
-
-    for (my $retry = 0; $retry < @{$self->{retry}}; $retry++, $now = time) {
+    for (my $retry = 0; $retry < @{$self->{retry}}; $retry++) {
         my ($server, $server_timeout) = @{$self->{retry}->[$retry]};
 
+        my $now = time;
         my $server_timeout_at = $now + $server_timeout;
         $server_timeout_at = $total_timeout_at
             if $total_timeout_at < $server_timeout_at;
