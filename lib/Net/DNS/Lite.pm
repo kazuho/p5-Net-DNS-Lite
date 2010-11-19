@@ -6,9 +6,14 @@ use strict;
 use warnings;
 
 use Carp ();
+use Exporter qw(import);
 use List::MoreUtils qw(uniq);
-use Socket qw(AF_INET SOCK_DGRAM inet_aton inet_ntoa sockaddr_in
-              unpack_sockaddr_in);
+use Socket qw(AF_INET SOCK_DGRAM inet_ntoa sockaddr_in unpack_sockaddr_in);
+
+our @EXPORT_OK = qw(inet_aton);
+our %EXPORT_TAGS = (
+    'all' => [ @EXPORT_OK ],
+);
 
 sub DOMAIN_PORT () { 53 }
 
@@ -90,6 +95,8 @@ our %class_id = (
 
 our %class_str = reverse %class_id;
 
+our $TIMEOUT = 10;
+
 sub new {
     my ($class, %arg) = @_;
 
@@ -134,7 +141,7 @@ sub _compile {
 
     $self->{server} = [
         map {
-            inet_aton($_) or Carp::croak "invalid server address: $_"
+            Socket::inet_aton($_) or Carp::croak "invalid server address: $_"
         } grep { length($_) } uniq @{$self->{server}},
     ];
 
@@ -178,10 +185,13 @@ sub resolve {
 
         # advance in cname-chain
         $do_req = sub {
-            my $res = $self->request({
-                rd => 1,
-                qd => [[$name, $qtype, $class]],
-            }) or return $do_search->();
+            my $res = $self->request(
+                +{
+                    rd => 1,
+                    qd => [[$name, $qtype, $class]],
+                },
+                ($opt{timeout} ? (timeout => $opt{timeout}) : ()),
+            ) or return $do_search->();
 
             my $cname;
 
@@ -224,17 +234,25 @@ sub resolve {
 }
 
 sub request {
-    my ($self, $req) = @_;
+    my ($self, $req, $total_timeout) = @_;
 
     $req->{id} ||= $$;
     my $req_pkt = dns_pack($req);
 
-    my $now = time;
-    
-    for (my $retry = 0; $retry < @{$self->{retry}}; $retry++) {
-        my ($server, $timeout) = @{$self->{retry}->[$retry]};
+    # use some big value as default so that all servers and retries will be
+    # performed before total_timeout
+    $total_timeout = $TIMEOUT
+        if not defined $total_timeout;
 
-        my $timeout_at = $now + $timeout;
+    my $now = time;
+    my $total_timeout_at = $now + $total_timeout;
+
+    for (my $retry = 0; $retry < @{$self->{retry}}; $retry++) {
+        my ($server, $server_timeout) = @{$self->{retry}->[$retry]};
+
+        my $server_timeout_at = $now + $server_timeout;
+        $server_timeout_at = $total_timeout_at
+            if $total_timeout_at < $server_timeout_at;
 
         # send request
         send(
@@ -248,7 +266,7 @@ sub request {
         # wait for the response (or the timeout)
         my $res;
         for (; ; undef($res), $now = time) {
-            my $select_timeout = $timeout_at - $now;
+            my $select_timeout = $server_timeout_at - $now;
             last if $select_timeout <= 0;
             my $rfd = '';
             vec($rfd, fileno($self->{sock_v4}), 1) = 1;
@@ -530,6 +548,24 @@ sub parse_ipv6 {
     pack "n*", map hex, @h, @t
 }
 
+our $resolver;
+
+sub RESOLVER() {
+    $resolver ||= Net::DNS::Lite->new;
+}
+
+sub inet_aton {
+    my $name = shift;
+    if (my $address = parse_address($name)) {
+        return $address;
+    }
+    for my $rec (RESOLVER->resolve($name, 'a')) {
+        my $address = parse_ipv4($rec->[3]);
+        return $address if defined $address;
+    }
+    return undef;
+}
+
 1;
 __END__
 
@@ -539,10 +575,10 @@ Net::DNS::Lite - a pure-perl DNS resolver with support for timeout
 
 =head1 SYNOPSIS
 
-    use Net::DNS::Lite;
+    use Net::DNS::Lite qw(inet_aton);
 
-    my $timeout = 5; # seconds
-    my $addr = Net::DNS::Lite::inet_aton("www.google.com", $timeout);
+    $Net::DNS::Lite::TIMEOUT = 5; # seconds
+    my $addr = inet_aton("www.google.com");
 
 =head1 DESCRIPTION
 
