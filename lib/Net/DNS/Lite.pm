@@ -409,3 +409,34 @@ sub dns_unpack {
 }
 
 1;
+__END__
+
+=head1 NAME
+
+Net::DNS::Lite - a pure-perl DNS resolver with support for timeout
+
+=head1 SYNOPSIS
+
+    use Net::DNS::Lite;
+
+    my $timeout = 5; # seconds
+    my $addr = Net::DNS::Lite::inet_aton("www.google.com", $timeout);
+
+=head1 DESCRIPTION
+
+This module provides a replacement function for L<Socket::inet_aton>, with support for timeouts.
+
+=head1 AUTHOR
+
+Kazuho Oku
+
+The module is based on the excellent L<AnyEvent::DNS> by mlehmann.
+
+=head1 LICENSE
+
+       This program is free software; you can redistribute it and/or modify it
+       under the same terms as Perl itself.
+
+       See <http://www.perl.com/perl/misc/Artistic.html>
+
+=cut
