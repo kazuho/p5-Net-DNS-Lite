@@ -93,9 +93,6 @@ our %class_str = reverse %class_id;
 sub new {
     my ($class, %arg) = @_;
 
-    Carp::croak "missing mandatory parameter: 'server'"
-        unless $arg{server};
-
     my $self = bless {
         server          => [],
         timeout         => [2, 5, 5],
@@ -116,6 +113,14 @@ sub new {
 
     $got_socket
         or Carp::croak "unable to create either an IPv4 or an IPv6 socket";
+
+    if (@{$self->{server}} == 0) {
+        if (-e '/etc/resolv.conf') {
+            $self->_parse_resolv_conf_file('/etc/resolv.conf');
+        } else {
+            Carp::croak "server was not specified and there is no /etc/resolv.conf";
+        }
+    }
 
     $self->_compile;
 
@@ -144,8 +149,8 @@ sub _compile {
 
 sub resolve {
     my ($self, $qname, $qtype, %opt) = @_;
-    
-   my @search = $qname =~ s/\.$//
+
+    my @search = $qname =~ s/\.$//
        ? ""
        : $opt{search}
            ? @{ $opt{search} }
@@ -259,6 +264,55 @@ sub request {
     }
 
     return;
+}
+
+sub parse_resolv_conf {
+    my ($self, $resolvconf) = @_;
+
+    $self->{server} = [];
+    $self->{search} = [];
+
+    my $attempts;
+
+    for (split /\n/, $resolvconf) {
+        s/\s*[;#].*$//; # not quite legal, but many people insist
+
+        if (/^\s*nameserver\s+(\S+)\s*$/i) {
+            my $ip = $1;
+            if (my $ipn = parse_address($ip)) {
+                push @{ $self->{server} }, $ip;
+            } else {
+                warn "nameserver $ip invalid and ignored\n";
+            }
+        } elsif (/^\s*domain\s+(\S*)\s*$/i) {
+            $self->{search} = [$1];
+        } elsif (/^\s*search\s+(.*?)\s*$/i) {
+            $self->{search} = [split /\s+/, $1];
+        } elsif (/^\s*sortlist\s+(.*?)\s*$/i) {
+            # ignored, NYI
+        } elsif (/^\s*options\s+(.*?)\s*$/i) {
+            for (split /\s+/, $1) {
+                if (/^timeout:(\d+)$/) {
+                    $self->{timeout} = [$1];
+                } elsif (/^attempts:(\d+)$/) {
+                    $attempts = $1;
+                } elsif (/^ndots:(\d+)$/) {
+                    $self->{ndots} = $1;
+                } else {
+                    # debug, rotate, no-check-names, inet6
+                }
+            }
+        }
+    }
+}
+
+sub _parse_resolv_conf_file {
+    my ($self, $resolv_conf) = @_;
+
+    open my $fh, '<', $resolv_conf
+        or Carp::croak "could not open file: $resolv_conf: $!";
+
+    $self->parse_resolv_conf(do { local $/; join '', <$fh> });
 }
 
 sub _enc_name($) {
@@ -401,6 +455,72 @@ sub dns_unpack {
       ns => [map _dec_rr, 1 .. $ns],
       ar => [map _dec_rr, 1 .. $ar],
    }
+}
+
+sub parse_address {
+    my $text = shift;
+    if (my $addr = parse_ipv6($text)) {
+        $addr =~ s/^\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xff\xff//;
+        return $addr;
+    } else {
+        return parse_ipv4($text);
+    }
+}
+
+sub parse_ipv4 {
+    $_[0] =~ /^      (?: 0x[0-9a-fA-F]+ | 0[0-7]* | [1-9][0-9]* )
+              (?:\. (?: 0x[0-9a-fA-F]+ | 0[0-7]* | [1-9][0-9]* ) ){0,3}$/x
+                  or return undef;
+
+    @_ = map /^0/ ? oct : $_, split /\./, $_[0];
+
+    # check leading parts against range
+    return undef if grep $_ >= 256, @_[0 .. @_ - 2];
+
+    # check trailing part against range
+    return undef if $_[-1] >= 2 ** (8 * (4 - $#_));
+
+    pack "N", (pop)
+        + ($_[0] << 24)
+        + ($_[1] << 16)
+        + ($_[2] <<  8);
+}
+
+sub parse_ipv6 {
+    # quick test to avoid longer processing
+    my $n = $_[0] =~ y/://;
+    return undef if $n < 2 || $n > 8;
+
+    my ($h, $t) = split /::/, $_[0], 2;
+
+    unless (defined $t) {
+        ($h, $t) = (undef, $h);
+    }
+
+    my @h = split /:/, $h;
+    my @t = split /:/, $t;
+
+    # check for ipv4 tail
+    if (@t && $t[-1]=~ /\./) {
+        return undef if $n > 6;
+
+        my $ipn = parse_ipv4(pop @t)
+            or return undef;
+
+        push @t, map +(sprintf "%x", $_), unpack "nn", $ipn;
+    }
+
+    # no :: then we need to have exactly 8 components
+    return undef unless @h + @t == 8 || $_[0] =~ /::/;
+
+    # now check all parts for validity
+    return undef if grep !/^[0-9a-fA-F]{1,4}$/, @h, @t;
+
+    # now pad...
+    push @h, 0 while @h + @t < 8;
+
+    # and done
+    pack "n*", map hex, @h, @t
 }
 
 1;
