@@ -240,7 +240,10 @@ sub request {
         send(
             $self->{sock_v4}, $req_pkt, 0,
             scalar sockaddr_in(DOMAIN_PORT, $server),
-        );
+        ) or do {
+            warn "failed to send packet to @{[inet_ntoa($server)]}:$!";
+            next;
+        };
 
         # wait for the response (or the timeout)
         my $res;
