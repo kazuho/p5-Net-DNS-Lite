@@ -589,8 +589,12 @@ Net::DNS::Lite - a pure-perl DNS resolver with support for timeout
 
     use Net::DNS::Lite qw(inet_aton);
 
-    $Net::DNS::Lite::TIMEOUT = 5; # seconds
+    # drop-in replacement for Socket::inet_aton
+    $Net::DNS::Lite::TIMEOUT = 5; # global timeout variable
     my $addr = inet_aton("www.google.com");
+
+    # or per-query timeout
+    my $addr = inet_aton("www.google.com", $timeout_in_seconds);
 
 =head1 DESCRIPTION
 
