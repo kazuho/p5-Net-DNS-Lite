@@ -9,7 +9,11 @@ use Carp ();
 use Exporter qw(import);
 use List::MoreUtils qw(uniq);
 use Socket qw(AF_INET SOCK_DGRAM inet_ntoa sockaddr_in unpack_sockaddr_in);
+use Time::HiRes qw(time);
 
+our $VERSION = '0.01';
+
+our @EXPORT = qw();
 our @EXPORT_OK = qw(inet_aton);
 our %EXPORT_TAGS = (
     'all' => [ @EXPORT_OK ],
@@ -190,7 +194,7 @@ sub resolve {
                     rd => 1,
                     qd => [[$name, $qtype, $class]],
                 },
-                ($opt{timeout} ? (timeout => $opt{timeout}) : ()),
+                ($opt{timeout} ? ($opt{timeout}) : ()),
             ) or return $do_search->();
 
             my $cname;
@@ -247,7 +251,7 @@ sub request {
     my $now = time;
     my $total_timeout_at = $now + $total_timeout;
 
-    for (my $retry = 0; $retry < @{$self->{retry}}; $retry++) {
+    for (my $retry = 0; $retry < @{$self->{retry}}; $retry++, $now = time) {
         my ($server, $server_timeout) = @{$self->{retry}->[$retry]};
 
         my $server_timeout_at = $now + $server_timeout;
@@ -267,6 +271,10 @@ sub request {
         my $res;
         for (; ; undef($res), $now = time) {
             my $select_timeout = $server_timeout_at - $now;
+            if ($select_timeout <= 0) {
+                return if $total_timeout_at <= $now;
+                last;
+            }
             last if $select_timeout <= 0;
             my $rfd = '';
             vec($rfd, fileno($self->{sock_v4}), 1) = 1;
@@ -559,7 +567,11 @@ sub inet_aton {
     if (my $address = parse_address($name)) {
         return $address;
     }
-    for my $rec (RESOLVER->resolve($name, 'a')) {
+    my @rr = RESOLVER->resolve(
+        $name, 'a',
+        (@_ ? (timeout => $_[0]) : ()),
+    );
+    for my $rec (@rr) {
         my $address = parse_ipv4($rec->[3]);
         return $address if defined $address;
     }

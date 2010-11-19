@@ -17,12 +17,22 @@ is length($ip), 4;
 $ip = inet_aton("foo.nonexistent.");
 ok ! defined $ip, "lookup foo.nonexistent.";
 
-$Net::DNS::Lite::TIMEOUT = 3;
+{
+    local $Net::DNS::Lite::TIMEOUT = 1;
 
-my $start_at = time;
-$ip = inet_aton("harepe.co.");
-my $elapsed = time - $start_at;
-ok ! defined $ip, 'no response from server';
-ok 2.5 <= $elapsed && $elapsed <= 3.5, "elapsed: $elapsed";
+    my $start_at = time;
+    $ip = inet_aton("harepe.co.");
+    my $elapsed = time - $start_at;
+    ok ! defined $ip, 'global timeout';
+    ok 0.5 <= $elapsed && $elapsed <= 1.5, "elapsed: $elapsed";
+}
+
+{
+    my $start_at = time;
+    $ip = inet_aton("harepe.co.", 1);
+    my $elapsed = time - $start_at;
+    ok ! defined $ip, 'timeout as arg';
+    ok 0.5 <= $elapsed && $elapsed <= 1.5, "elapsed: $elapsed";
+}
 
 done_testing;
