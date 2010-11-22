@@ -100,6 +100,7 @@ our %class_id = (
 our %class_str = reverse %class_id;
 
 our $TIMEOUT = 10;
+our $PID;
 
 sub new {
     my ($class, %arg) = @_;
@@ -111,11 +112,7 @@ sub new {
         ndots           => 1,
         reuse           => 300,
         %arg,
-        reuse_q         => [],
-        reuse_h         => +{},
     }, $class;
-
-    $self->_open_socket();
 
     if (@{$self->{server}} == 0) {
         if (-e '/etc/resolv.conf') {
@@ -128,24 +125,6 @@ sub new {
     $self->_compile;
 
     $self
-}
-
-sub _open_socket {
-    my $self = shift;
-
-    my $got_socket = 0;
-    socket($self->{sock_v4}, AF_INET, SOCK_DGRAM, 0)
-        and $got_socket++;
-    # if (AF_INET6) {
-    #     socket($self->{sock_v6}, AF_INET6, SOCK_DGRAM, 0)
-    #         and $got_socket++;
-    # }
-
-    $got_socket
-        or Carp::croak "unable to create either an IPv4 or an IPv6 socket";
-
-    $self->{reuse_q} = [];
-    $self->{reuse_h} = +{};
 }
 
 sub _compile {
@@ -254,6 +233,9 @@ sub resolve {
 sub request {
     my ($self, $req, $total_timeout_at) = @_;
 
+    $self->_open_socket()
+        if ! $self->{sock_v4} || $self->{pid} != $$;
+
     $req->{id} = $self->_new_id();
 
     my $req_pkt = dns_pack($req);
@@ -309,6 +291,25 @@ sub request {
  FAIL:
     $self->_register_unusable_id($req->{id});
     return;
+}
+
+sub _open_socket {
+    my $self = shift;
+
+    my $got_socket = 0;
+    socket($self->{sock_v4}, AF_INET, SOCK_DGRAM, 0)
+        and $got_socket++;
+    # if (AF_INET6) {
+    #     socket($self->{sock_v6}, AF_INET6, SOCK_DGRAM, 0)
+    #         and $got_socket++;
+    # }
+
+    $got_socket
+        or Carp::croak "unable to create either an IPv4 or an IPv6 socket";
+
+    $self->{reuse_q} = [];
+    $self->{reuse_h} = +{};
+    $self->{pid} = $$;
 }
 
 sub _new_id {
