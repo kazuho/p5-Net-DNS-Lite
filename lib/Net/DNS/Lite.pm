@@ -648,9 +648,8 @@ The module is based on the excellent L<AnyEvent::DNS> by mlehmann.
 
 =head1 LICENSE
 
-       This program is free software; you can redistribute it and/or modify it
-       under the same terms as Perl itself.
+This program is free software; you can redistribute it and/or modify it under the same terms as Perl itself.
 
-       See <http://www.perl.com/perl/misc/Artistic.html>
+See <http://www.perl.com/perl/misc/Artistic.html>
 
 =cut
