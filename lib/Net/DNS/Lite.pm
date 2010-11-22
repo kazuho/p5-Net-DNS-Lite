@@ -11,7 +11,7 @@ use List::MoreUtils qw(uniq);
 use Socket qw(AF_INET SOCK_DGRAM inet_ntoa sockaddr_in unpack_sockaddr_in);
 use Time::HiRes qw(time);
 
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 
 our @EXPORT = qw();
 our @EXPORT_OK = qw(inet_aton);
