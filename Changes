@@ -1,5 +1,8 @@
 Revision history for Perl extension Net::DNS::Lite
 
+0.03
+	- (hopefully) fix compatibility issues with the tar archive
+
 0.02
 	- (hopefully) fix compatibility issues with the tar archive
 	- proper handling of query ids (generation using random and reuse list)
