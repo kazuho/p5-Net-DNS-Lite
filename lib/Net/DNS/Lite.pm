@@ -112,18 +112,10 @@ sub new {
         reuse           => 300,
         %arg,
         reuse_q         => [],
+        reuse_h         => +{},
     }, $class;
 
-    my $got_socket = 0;
-    socket($self->{sock_v4}, AF_INET, SOCK_DGRAM, 0)
-        and $got_socket++;
-    # if (AF_INET6) {
-    #     socket($self->{sock_v6}, AF_INET6, SOCK_DGRAM, 0)
-    #         and $got_socket++;
-    # }
-
-    $got_socket
-        or Carp::croak "unable to create either an IPv4 or an IPv6 socket";
+    $self->_open_socket();
 
     if (@{$self->{server}} == 0) {
         if (-e '/etc/resolv.conf') {
@@ -136,6 +128,24 @@ sub new {
     $self->_compile;
 
     $self
+}
+
+sub _open_socket {
+    my $self = shift;
+
+    my $got_socket = 0;
+    socket($self->{sock_v4}, AF_INET, SOCK_DGRAM, 0)
+        and $got_socket++;
+    # if (AF_INET6) {
+    #     socket($self->{sock_v6}, AF_INET6, SOCK_DGRAM, 0)
+    #         and $got_socket++;
+    # }
+
+    $got_socket
+        or Carp::croak "unable to create either an IPv4 or an IPv6 socket";
+
+    $self->{reuse_q} = [];
+    $self->{reuse_h} = +{};
 }
 
 sub _compile {
@@ -244,7 +254,8 @@ sub resolve {
 sub request {
     my ($self, $req, $total_timeout_at) = @_;
 
-    $req->{id} ||= $$;
+    $req->{id} = $self->_new_id();
+
     my $req_pkt = dns_pack($req);
 
     for (my $retry = 0; $retry < @{$self->{retry}}; $retry++) {
@@ -269,7 +280,7 @@ sub request {
         for (; ; undef($res), $now = time) {
             my $select_timeout = $server_timeout_at - $now;
             if ($select_timeout <= 0) {
-                return if $total_timeout_at <= $now;
+                goto FAIL if $total_timeout_at <= $now;
                 last;
             }
             last if $select_timeout <= 0;
@@ -288,12 +299,44 @@ sub request {
             $res = dns_unpack($res_pkt)
                 or next;
             if ($res->{id} == $req->{id}) {
+                $self->_register_unusable_id($req->{id})
+                    if $retry != 0;
                 return $res;
             }
         }
     }
 
+ FAIL:
+    $self->_register_unusable_id($req->{id});
     return;
+}
+
+sub _new_id {
+    my $self = shift;
+    my $id;
+
+    my $now = time;
+
+    if (@{$self->{reuse_q}} >= 30000) {
+        $self->_open_socket();
+    } else {
+        delete $self->{reuse_h}{(shift @{$self->{reuse_q}})->[1]}
+            while @{$self->{reuse_q}} && $self->{reuse_q}[0][0] <= $now;
+    }
+
+    while (1) {
+        $id = int rand(65536);
+        last if not defined $self->{reuse_h}{$id};
+    }
+
+    $id;
+}
+
+sub _register_unusable_id {
+    my ($self, $id) = @_;
+
+    push @{$self->{reuse_q}}, [ time + $self->{reuse}, $id ];
+    $self->{reuse_h}{$id} = 1;
 }
 
 sub parse_resolv_conf {
