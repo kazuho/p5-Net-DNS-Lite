@@ -6,9 +6,11 @@ use Net::DNS::Lite qw(inet_aton);
 use Test::More;
 use Time::HiRes qw(time);
 
-if (! -e '/etc/resolv.conf') {
-    plan skip_all => 'no /etc/resolv.conf';
-}
+BEGIN {
+    if (! -e '/etc/resolv.conf') {
+        plan skip_all => 'no /etc/resolv.conf';
+    }
+};
 
 my $ip = inet_aton("google.com");
 ok scalar($ip), "lookup google.com";
