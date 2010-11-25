@@ -102,6 +102,7 @@ our %class_str = reverse %class_id;
 
 our $TIMEOUT = 10;
 our $CACHE;
+our $CACHE_TTL = 600;
 our $PID;
 
 sub new {
@@ -300,9 +301,12 @@ sub request {
                 $self->_register_unusable_id($req->{id})
                     if $retry != 0;
                 if ($cache) {
-                    my $ttl = min map {
-                        $_->[3]
-                    } (@{$res->{an}} ? @{$res->{an}} : @{$res->{ns}});
+                    my $ttl = min(
+                        $self->{cache_ttl} || $CACHE_TTL,
+                        map {
+                            $_->[3]
+                        } (@{$res->{an}} ? @{$res->{an}} : @{$res->{ns}}),
+                    );
                     $cache->set(
                         $cache_key => [ $res, time + $ttl + 0.5 ],
                     );
