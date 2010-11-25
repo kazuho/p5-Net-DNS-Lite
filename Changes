@@ -1,5 +1,8 @@
 Revision history for Perl extension Net::DNS::Lite
 
+0.04
+	- reopen udp socket when pid changes
+
 0.03
 	- (hopefully) fix compatibility issues with the tar archive
 
