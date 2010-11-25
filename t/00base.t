@@ -14,13 +14,13 @@ my $r = Net::DNS::Lite->new(
 
 my @r = $r->resolve("google.com", "a");
 ok scalar(@r), "lookup google.com";
-for my $ip (map { $_->[3] } @r) {
+for my $ip (map { $_->[4] } @r) {
     like $ip, qr/^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$/;
 }
 
 @r = $r->resolve("www", "a");
 ok scalar(@r), "lookup www (search = google.com)";
-for my $ip (map { $_->[3] } @r) {
+for my $ip (map { $_->[4] } @r) {
     like $ip, qr/^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$/;
 }
 
