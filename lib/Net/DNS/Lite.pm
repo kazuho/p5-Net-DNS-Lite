@@ -672,6 +672,20 @@ Net::DNS::Lite - a pure-perl DNS resolver with support for timeout
 
 This module provides a replacement function for L<Socket::inet_aton>, with support for timeouts.
 
+=head1 CONFIGURATION VARIABLES
+
+=head2 $Net::DNS::Lite::TIMEOUT
+
+maximum time (in seconds) inet_aton will block (default: 10)
+
+=head2 $Net::DNS::Lite::CACHE
+
+if set, Net::DNS::Lite will cache the DNS responses internally using the supplied cache object.  The cache object should support C<get>, C<set>, and C<delete> functions (default: none)
+
+=head2 $Net::DNS::Lite::CACHE_TTL
+
+maximum ttl of the cached entries (in seconds).  Only has effect when $Net::DNS::Lite::CACHE is set.
+
 =head1 AUTHOR
 
 Kazuho Oku
