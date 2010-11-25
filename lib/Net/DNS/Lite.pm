@@ -191,6 +191,7 @@ sub resolve {
             ) or return $do_search->();
 
             my $cname;
+            my $ttl = 99999999;
 
             while (1) {
                 # results found?
@@ -198,8 +199,12 @@ sub resolve {
                     $name eq lc $_->[0] && ($atype{"*"} || $atype{$_->[1]})
                 } @{$res->{an}};
 
-                (undef $do_search), (undef $do_req), return @rr
-                    if @rr;
+                if (@rr) {
+                    for (@rr) {
+                        $_->[3] = $ttl if $ttl < $_->[3];
+                    }
+                    (undef $do_search), (undef $do_req), return @rr;
+                }
 
                 # see if there is a cname we can follow
                 @rr = grep {
@@ -211,7 +216,8 @@ sub resolve {
                         or return $do_search->(); # cname chain too long
 
                     $cname = 1;
-                    $name = lc $rr[0][3];
+                    $name = lc $rr[0][4];
+                    $ttl = $rr[0][3] if $rr[0][3] < $ttl;
 
                 } elsif ($cname) {
                     # follow the cname
@@ -501,6 +507,7 @@ sub _dec_rr {
       $name,
       $type_str{$rt}  || $rt,
       $class_str{$rc} || $rc,
+      $ttl,
       ($dec_rr{$rt} || sub { $_ })->(),
    ]
 }
@@ -613,7 +620,7 @@ sub inet_aton {
         (@_ ? (timeout => $_[0]) : ()),
     );
     for my $rec (@rr) {
-        my $address = parse_ipv4($rec->[3]);
+        my $address = parse_ipv4($rec->[4]);
         return $address if defined $address;
     }
     return undef;
