@@ -637,9 +637,11 @@ sub inet_aton {
         $name, 'a',
         (@_ ? (timeout => $_[0]) : ()),
     );
-    for my $rec (@rr) {
-        my $address = parse_ipv4($rec->[4]);
+    while (@rr) {
+        my $idx = int rand @rr;
+        my $address = parse_ipv4($rr[$idx][4]);
         return $address if defined $address;
+        splice @rr, $idx, 1;
     }
     return undef;
 }
