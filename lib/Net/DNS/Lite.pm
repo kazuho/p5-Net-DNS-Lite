@@ -8,6 +8,7 @@ use warnings;
 use Carp ();
 use Exporter qw(import);
 use List::MoreUtils qw(uniq);
+use List::Util qw(min);
 use Socket qw(AF_INET SOCK_DGRAM inet_ntoa sockaddr_in unpack_sockaddr_in);
 use Time::HiRes qw(time);
 
@@ -100,6 +101,7 @@ our %class_id = (
 our %class_str = reverse %class_id;
 
 our $TIMEOUT = 10;
+our $CACHE;
 our $PID;
 
 sub new {
@@ -182,16 +184,10 @@ sub resolve {
 
         # advance in cname-chain
         $do_req = sub {
-            my $res = $self->request(
-                +{
-                    rd => 1,
-                    qd => [[$name, $qtype, $class]],
-                },
-                $timeout_at,
-            ) or return $do_search->();
+            my $res = $self->request($name, $qtype, $class, $timeout_at)
+                or return $do_search->();
 
             my $cname;
-            my $ttl = 99999999;
 
             while (1) {
                 # results found?
@@ -200,9 +196,6 @@ sub resolve {
                 } @{$res->{an}};
 
                 if (@rr) {
-                    for (@rr) {
-                        $_->[3] = $ttl if $ttl < $_->[3];
-                    }
                     (undef $do_search), (undef $do_req), return @rr;
                 }
 
@@ -217,7 +210,6 @@ sub resolve {
 
                     $cname = 1;
                     $name = lc $rr[0][4];
-                    $ttl = $rr[0][3] if $rr[0][3] < $ttl;
 
                 } elsif ($cname) {
                     # follow the cname
@@ -237,12 +229,30 @@ sub resolve {
 }
 
 sub request {
-    my ($self, $req, $total_timeout_at) = @_;
+    my ($self, $name, $qtype, $class, $total_timeout_at) = @_;
+
+    my $cache = $self->{cache};
+    if (! defined $self->{cache}) {
+        $cache = $CACHE;
+    }
+    my $cache_key = "$class $qtype $name";
+
+    if ($cache) {
+        if (my $value = $cache->get($cache_key)) {
+            my ($res, $expires_at) = @$value;
+            return $res if time < $expires_at;
+            $cache->remove($cache_key);
+        }
+    }
 
     $self->_open_socket()
         if ! $self->{sock_v4} || $self->{pid} != $$;
 
-    $req->{id} = $self->_new_id();
+    my $req = {
+        id => $self->_new_id(),
+        rd => 1,
+        qd => [[$name, $qtype, $class]],
+    };
 
     my $req_pkt = dns_pack($req);
 
@@ -289,6 +299,14 @@ sub request {
             if ($res->{id} == $req->{id}) {
                 $self->_register_unusable_id($req->{id})
                     if $retry != 0;
+                if ($cache) {
+                    my $ttl = min map {
+                        $_->[3]
+                    } (@{$res->{an}} ? @{$res->{an}} : @{$res->{ns}});
+                    $cache->set(
+                        $cache_key => [ $res, time + $ttl + 0.5 ],
+                    );
+                }
                 return $res;
             }
         }
