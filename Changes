@@ -1,5 +1,8 @@
 Revision history for Perl extension Net::DNS::Lite
 
+0.06
+	- do not send unnecessary packets on DNS timeout
+
 0.05
 	- add support for internal cache
 
