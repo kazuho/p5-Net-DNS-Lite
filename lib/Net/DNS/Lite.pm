@@ -513,7 +513,7 @@ our %dec_rr = (
     13 => sub { unpack "C/a* C/a*", $_ }, # hinfo    15 => sub { local $ofs = $ofs + 2 - length; ((unpack "n", $_), _dec_name) },
  # mx
     16 => sub { unpack "(C/a*)*", $_ }, # txt
-    28 => sub { AnyEvent::Socket::format_ipv6 ($_) }, # aaaa
+    28 => sub { format_ipv6 ($_) }, # aaaa
     33 => sub { local $ofs = $ofs + 6 - length; ((unpack "nnn", $_), _dec_name) }, # srv
     35 => sub { # naptr
        # requires perl 5.10, sorry
@@ -654,6 +654,42 @@ sub inet_aton {
         splice @rr, $idx, 1;
     }
     return undef;
+}
+
+sub format_ipv4($) {
+   join ".", unpack "C4", $_[0]
+}
+
+sub format_ipv6($) {
+   if ($_[0] =~ /^\x00\x00\x00\x00\x00\x00\x00\x00/) {
+      if (v0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0 eq $_[0]) {
+         return "::";
+      } elsif (v0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.1 eq $_[0]) {
+         return "::1";
+      } elsif (v0.0.0.0.0.0.0.0.0.0.0.0 eq substr $_[0], 0, 12) {
+         # v4compatible
+         return "::" . format_ipv4 substr $_[0], 12;
+      } elsif (v0.0.0.0.0.0.0.0.0.0.255.255 eq substr $_[0], 0, 12) {
+         # v4mapped
+         return "::ffff:" . format_ipv4 substr $_[0], 12;
+      } elsif (v0.0.0.0.0.0.0.0.255.255.0.0 eq substr $_[0], 0, 12) {
+         # v4translated
+         return "::ffff:0:" . format_ipv4 substr $_[0], 12;
+      }
+   }
+
+   my $ip = sprintf "%x:%x:%x:%x:%x:%x:%x:%x", unpack "n8", $_[0];
+
+   # this is admittedly rather sucky
+      $ip =~ s/(?:^|:) 0:0:0:0:0:0:0 (?:$|:)/::/x
+   or $ip =~ s/(?:^|:)   0:0:0:0:0:0 (?:$|:)/::/x
+   or $ip =~ s/(?:^|:)     0:0:0:0:0 (?:$|:)/::/x
+   or $ip =~ s/(?:^|:)       0:0:0:0 (?:$|:)/::/x
+   or $ip =~ s/(?:^|:)         0:0:0 (?:$|:)/::/x
+   or $ip =~ s/(?:^|:)           0:0 (?:$|:)/::/x
+   or $ip =~ s/(?:^|:)             0 (?:$|:)/::/x;
+
+   $ip
 }
 
 1;
