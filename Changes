@@ -1,5 +1,8 @@
 Revision history for Perl extension Net::DNS::Lite
 
+0.08
+	- temporary disable timeout test (due to the expiration of the domain used for testing)
+
 0.07
 	- remove implicit dependency on AnyEvent
 

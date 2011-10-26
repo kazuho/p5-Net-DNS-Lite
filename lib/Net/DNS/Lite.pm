@@ -12,7 +12,7 @@ use List::Util qw(min);
 use Socket qw(AF_INET SOCK_DGRAM inet_ntoa sockaddr_in unpack_sockaddr_in);
 use Time::HiRes qw(time);
 
-our $VERSION = '0.07';
+our $VERSION = '0.08';
 
 our @EXPORT = qw();
 our @EXPORT_OK = qw(inet_aton);
