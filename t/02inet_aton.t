@@ -19,7 +19,7 @@ is length($ip), 4;
 $ip = inet_aton("foo.nonexistent.");
 ok ! defined $ip, "lookup foo.nonexistent.";
 
-{
+if (0) {
     local $Net::DNS::Lite::TIMEOUT = 1;
 
     my $start_at = time;
@@ -29,7 +29,7 @@ ok ! defined $ip, "lookup foo.nonexistent.";
     ok 0.5 <= $elapsed && $elapsed <= 1.5, "elapsed: $elapsed";
 }
 
-{
+if (0) {
     my $start_at = time;
     $ip = inet_aton("harepe.co.", 1);
     my $elapsed = time - $start_at;
