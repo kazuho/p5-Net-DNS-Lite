@@ -381,6 +381,7 @@ sub parse_resolv_conf {
     $self->{search} = [];
 
     my $attempts;
+    my $timeout;
 
     for (split /\n/, $resolvconf) {
         s/\s*[;#].*$//; # not quite legal, but many people insist
@@ -401,7 +402,7 @@ sub parse_resolv_conf {
         } elsif (/^\s*options\s+(.*?)\s*$/i) {
             for (split /\s+/, $1) {
                 if (/^timeout:(\d+)$/) {
-                    $self->{timeout} = [$1];
+                    $timeout = $1;
                 } elsif (/^attempts:(\d+)$/) {
                     $attempts = $1;
                 } elsif (/^ndots:(\d+)$/) {
@@ -411,6 +412,12 @@ sub parse_resolv_conf {
                 }
             }
         }
+    }
+
+    if ( $timeout || $attempts ) {
+        $timeout ||= 5;
+        $attempts ||= 2;
+        $self->{timeout} = [ map { $timeout } 1..$attempts ];
     }
 }
 
