@@ -1,5 +1,8 @@
 Revision history for Perl extension Net::DNS::Lite
 
+0.10
+	- fix documentation issue (by tokuhirom)
+
 0.09
 	- support for the "attempts" field in resolve.conf (by kazeburo)
 0.08

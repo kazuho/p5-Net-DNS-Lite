@@ -22,7 +22,7 @@ CONFIGURATION VARIABLES
   $Net::DNS::Lite::CACHE
     if set, Net::DNS::Lite will cache the DNS responses internally using the
     supplied cache object. The cache object should support "get", "set", and
-    "delete" functions (default: none)
+    "remove" functions (default: none)
 
   $Net::DNS::Lite::CACHE_TTL
     maximum ttl of the cached entries (in seconds). Only has effect when
