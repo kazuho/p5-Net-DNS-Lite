@@ -138,6 +138,8 @@ sub _compile {
     $self->{server} = [
         map {
             Socket::inet_aton($_) or Carp::croak "invalid server address: $_"
+        } grep {
+          ! /:/ # ignore ipv6 address (for now)
         } grep { length($_) } uniq @{$self->{server}},
     ];
 
