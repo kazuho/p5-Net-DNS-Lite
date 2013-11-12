@@ -17,6 +17,7 @@
 ^[^/]+\.yaml$
 ^[^/]+\.pl$
 ^\.shipit$
+\.gitignore$
 \.git$
 \.git/
 nytprof/
