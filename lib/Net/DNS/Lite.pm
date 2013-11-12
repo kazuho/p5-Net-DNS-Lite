@@ -613,7 +613,7 @@ sub parse_ipv6 {
         ($h, $t) = (undef, $h);
     }
 
-    my @h = split /:/, $h;
+    my @h = defined $h ? (split /:/, $h) : ();
     my @t = split /:/, $t;
 
     # check for ipv4 tail
