@@ -517,10 +517,11 @@ our %dec_rr = (
              local $ofs = $ofs - length;             my $mname = _dec_name;
              my $rname = _dec_name;
              ($mname, $rname, unpack "NNNNN", substr $pkt, $ofs)
-          }, # soa    11 => sub { ((join ".", unpack "C4", $_), unpack "C a*", substr $_, 4) }, # wks
+          }, # soa
+    11 => sub { ((join ".", unpack "C4", $_), unpack "C a*", substr $_, 4) }, # wks
     12 => sub { local $ofs = $ofs - length; _dec_name }, # ptr
-    13 => sub { unpack "C/a* C/a*", $_ }, # hinfo    15 => sub { local $ofs = $ofs + 2 - length; ((unpack "n", $_), _dec_name) },
- # mx
+    13 => sub { unpack "C/a* C/a*", $_ }, # hinfo
+    15 => sub { local $ofs = $ofs + 2 - length; ((unpack "n", $_), _dec_name) }, # mx
     16 => sub { unpack "(C/a*)*", $_ }, # txt
     28 => sub { format_ipv6 ($_) }, # aaaa
     33 => sub { local $ofs = $ofs + 6 - length; ((unpack "nnn", $_), _dec_name) }, # srv
