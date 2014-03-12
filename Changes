@@ -1,5 +1,8 @@
 Revision history for Perl extension Net::DNS::Lite
 
+0.12
+	- fix handling of MX records (by fujiwara)
+
 0.11
 	- ignore ipv6 addresses in resolve.conf, since we do not yet support DNS queries transferred over IPv6
 
