@@ -6,6 +6,9 @@ use Test::More;
 use Test::Requires qw(Cache::LRU);
 
 BEGIN {
+    plan skip_all => 'These tests need network access'
+        if $ENV{NO_NETWORK_TESTING};
+
     use_ok('Net::DNS::Lite');
 };
 
