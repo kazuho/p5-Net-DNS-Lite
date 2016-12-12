@@ -7,6 +7,9 @@ use Test::More;
 use Time::HiRes qw(time);
 
 BEGIN {
+    plan skip_all => 'These tests need network access'
+        if $ENV{NO_NETWORK_TESTING};
+
     if (! -e '/etc/resolv.conf') {
         plan skip_all => 'no /etc/resolv.conf';
     }

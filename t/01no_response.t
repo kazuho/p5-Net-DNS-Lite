@@ -6,6 +6,11 @@ use Net::DNS::Lite;
 use Test::More;
 use Time::HiRes qw(time);
 
+BEGIN {
+    plan skip_all => 'These tests need network access'
+        if $ENV{NO_NETWORK_TESTING};
+}
+
 my $r = Net::DNS::Lite->new(
     server => [ qw(google.com) ], # google.com just drops UDP 53 (no response)
 );
