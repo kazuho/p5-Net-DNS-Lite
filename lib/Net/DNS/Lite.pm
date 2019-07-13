@@ -511,7 +511,8 @@ sub _dec_qd {
 }
 
 our %dec_rr = (
-     1 => sub { join ".", unpack "C4", $_ }, # a     2 => sub { local $ofs = $ofs - length; _dec_name }, # ns
+     1 => sub { join ".", unpack "C4", $_ }, # a
+     2 => sub { local $ofs = $ofs - length; _dec_name }, # ns
      5 => sub { local $ofs = $ofs - length; _dec_name }, # cname
      6 => sub { 
              local $ofs = $ofs - length;             my $mname = _dec_name;
